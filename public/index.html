@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Desi Editor</title>
+<style>
+  :root{
+    --bg:#0f0f13; --card:#191920; --accent:#ff5e2e; --accent2:#c9ff3d;
+    --text:#f2f2f2; --muted:#9a9aa5; --border:#2a2a33;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:'Segoe UI',Roboto,sans-serif; background:var(--bg); color:var(--text);
+    min-height:100vh; padding-bottom:40px;
+  }
+  header{
+    padding:22px 20px 16px; text-align:center;
+    background:linear-gradient(180deg, #1c1c24, #0f0f13);
+    border-bottom:1px solid var(--border);
+  }
+  header h1{
+    font-size:26px; letter-spacing:1px;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  header p{color:var(--muted); font-size:13px; margin-top:4px;}
+
+  .container{max-width:520px; margin:0 auto; padding:16px;}
+
+  .upload-box{
+    border:2px dashed var(--border); border-radius:14px; padding:28px 16px;
+    text-align:center; background:var(--card); cursor:pointer; transition:.2s;
+  }
+  .upload-box:hover{border-color:var(--accent);}
+  .upload-box span{display:block; font-size:14px; color:var(--muted); margin-top:8px;}
+
+  #previewWrap{margin-top:16px; display:none;}
+  video{width:100%; border-radius:12px; background:#000; max-height:320px;}
+
+  .tabs{display:flex; gap:8px; margin-top:18px; overflow-x:auto; padding-bottom:4px;}
+  .tab-btn{
+    flex:0 0 auto; padding:9px 16px; border-radius:20px; border:1px solid var(--border);
+    background:var(--card); color:var(--text); font-size:13px; cursor:pointer; white-space:nowrap;
+  }
+  .tab-btn.active{background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#000; font-weight:600; border:none;}
+
+  .panel{display:none; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; margin-top:14px;}
+  .panel.active{display:block;}
+
+  label{font-size:12px; color:var(--muted); display:block; margin:10px 0 4px;}
+  input[type=text], input[type=number], select{
+    width:100%; padding:10px; border-radius:8px; border:1px solid var(--border);
+    background:#101015; color:var(--text); font-size:14px;
+  }
+  input[type=range]{width:100%;}
+
+  .filter-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:8px;}
+  .filter-chip{
+    padding:10px 4px; text-align:center; border-radius:8px; border:1px solid var(--border);
+    background:#101015; font-size:12px; cursor:pointer;
+  }
+  .filter-chip.selected{border-color:var(--accent2); color:var(--accent2);}
+
+  .btn{
+    width:100%; padding:13px; border:none; border-radius:10px; margin-top:16px;
+    background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#000;
+    font-weight:700; font-size:15px; cursor:pointer;
+  }
+  .btn:disabled{opacity:.5;}
+  .btn.secondary{background:#101015; color:var(--text); border:1px solid var(--border);}
+
+  .status{margin-top:10px; font-size:13px; color:var(--muted); text-align:center;}
+  .status.error{color:#ff6b6b;}
+  .status.success{color:var(--accent2);}
+
+  .spinner{
+    width:18px; height:18px; border:2px solid #333; border-top-color:var(--accent2);
+    border-radius:50%; display:inline-block; animation:spin .7s linear infinite; vertical-align:middle; margin-right:6px;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .download-box{
+    margin-top:16px; background:var(--card); border:1px solid var(--accent2); border-radius:12px;
+    padding:16px; text-align:center; display:none;
+  }
+  a.dl-link{
+    display:inline-block; margin-top:8px; padding:10px 20px; border-radius:8px;
+    background:var(--accent2); color:#000; text-decoration:none; font-weight:700; font-size:14px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>DESI EDITOR</h1>
+  <p>Trim • Filters • Text • Music • Transitions</p>
+</header>
+
+<div class="container">
+
+  <div class="upload-box" id="uploadBox">
+    <div style="font-size:32px;">🎬</div>
+    <div>Tap to upload video</div>
+    <span>MP4, MOV supported • Max 500MB</span>
+    <input type="file" id="fileInput" accept="video/*" style="display:none;">
+  </div>
+
+  <div id="previewWrap">
+    <video id="previewVideo" controls></video>
+  </div>
+
+  <div class="tabs" id="tabs" style="display:none;">
+    <button class="tab-btn active" data-tab="trim">✂️ Trim</button>
+    <button class="tab-btn" data-tab="filter">🎨 Filters</button>
+    <button class="tab-btn" data-tab="text">🔤 Text</button>
+    <button class="tab-btn" data-tab="music">🎵 Music</button>
+    <button class="tab-btn" data-tab="transition">🔀 Transition</button>
+  </div>
+
+  <!-- TRIM -->
+  <div class="panel active" id="panel-trim">
+    <label>Start time (seconds)</label>
+    <input type="number" id="trimStart" value="0" min="0" step="0.1">
+    <label>End time (seconds)</label>
+    <input type="number" id="trimEnd" value="5" min="0" step="0.1">
+    <button class="btn" onclick="doTrim()">Apply Trim</button>
+  </div>
+
+  <!-- FILTER -->
+  <div class="panel" id="panel-filter">
+    <label>Choose a filter</label>
+    <div class="filter-grid" id="filterGrid">
+      <div class="filter-chip" data-f="grayscale">Grayscale</div>
+      <div class="filter-chip" data-f="sepia">Sepia</div>
+      <div class="filter-chip" data-f="vintage">Vintage</div>
+      <div class="filter-chip" data-f="bright">Bright+</div>
+      <div class="filter-chip" data-f="contrast">Contrast+</div>
+      <div class="filter-chip" data-f="blur">Blur</div>
+      <div class="filter-chip" data-f="invert">Invert</div>
+      <div class="filter-chip" data-f="cool">Cool Tone</div>
+      <div class="filter-chip" data-f="warm">Warm Tone</div>
+    </div>
+    <button class="btn" onclick="doFilter()">Apply Filter</button>
+  </div>
+
+  <!-- TEXT -->
+  <div class="panel" id="panel-text">
+    <label>Text</label>
+    <input type="text" id="textInput" placeholder="e.g. Desi Editor se Bana 🔥">
+    <label>Position</label>
+    <select id="textPosition">
+      <option value="top">Top</option>
+      <option value="center">Center</option>
+      <option value="bottom" selected>Bottom</option>
+    </select>
+    <label>Font size</label>
+    <input type="number" id="textSize" value="42">
+    <label>Color</label>
+    <select id="textColor">
+      <option value="white" selected>White</option>
+      <option value="yellow">Yellow</option>
+      <option value="red">Red</option>
+      <option value="lime">Lime</option>
+      <option value="orange">Orange</option>
+    </select>
+    <button class="btn" onclick="doText()">Add Text</button>
+  </div>
+
+  <!-- MUSIC -->
+  <div class="panel" id="panel-music">
+    <label>Upload background music (mp3)</label>
+    <input type="file" id="audioInput" accept="audio/*">
+    <label>Volume (0 - 1)</label>
+    <input type="range" id="musicVolume" min="0" max="1" step="0.05" value="0.8">
+    <label>Mode</label>
+    <select id="musicMode">
+      <option value="mix" selected>Mix with original audio</option>
+      <option value="replace">Replace original audio</option>
+    </select>
+    <button class="btn" onclick="doMusic()">Add Music</button>
+  </div>
+
+  <!-- TRANSITION -->
+  <div class="panel" id="panel-transition">
+    <label>Upload second clip</label>
+    <input type="file" id="secondClipInput" accept="video/*">
+    <label>Transition type</label>
+    <select id="transitionType">
+      <option value="fade">Fade</option>
+      <option value="wipeleft">Wipe Left</option>
+      <option value="slideup">Slide Up</option>
+      <option value="circleopen">Circle Open</option>
+      <option value="dissolve">Dissolve</option>
+    </select>
+    <label>Duration (seconds)</label>
+    <input type="number" id="transitionDuration" value="1" step="0.1">
+    <button class="btn" onclick="doTransition()">Join Clips with Transition</button>
+  </div>
+
+  <div class="status" id="statusMsg"></div>
+
+  <div class="download-box" id="downloadBox">
+    <div>✅ Processing complete!</div>
+    <a class="dl-link" id="downloadLink" href="#" target="_blank" download>⬇ Download Video</a>
+  </div>
+
+</div>
+
+<script>
+// Same Railway service serves both frontend and backend, so we just use the current origin.
+const BACKEND_URL = window.location.origin;
+
+let currentFilename = null;   // filename on server (after upload)
+let currentVideoURL = null;   // latest processed video URL (for chaining edits)
+let selectedFilter = null;
+
+const fileInput = document.getElementById('fileInput');
+const uploadBox = document.getElementById('uploadBox');
+const previewVideo = document.getElementById('previewVideo');
+const previewWrap = document.getElementById('previewWrap');
+const tabs = document.getElementById('tabs');
+const statusMsg = document.getElementById('statusMsg');
+const downloadBox = document.getElementById('downloadBox');
+const downloadLink = document.getElementById('downloadLink');
+
+uploadBox.addEventListener('click', () => fileInput.click());
+
+fileInput.addEventListener('change', async () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+  await uploadVideo(file);
+});
+
+async function uploadVideo(file) {
+  setStatus('Uploading...', false);
+  const formData = new FormData();
+  formData.append('video', file);
+  try {
+    const res = await fetch(`${BACKEND_URL}/upload`, { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Upload failed');
+    currentFilename = data.filename;
+    previewVideo.src = URL.createObjectURL(file);
+    previewWrap.style.display = 'block';
+    tabs.style.display = 'flex';
+    setStatus('Uploaded! Ab editing shuru karo 👇', true);
+  } catch (err) {
+    setStatus('Error: ' + err.message, false, true);
+  }
+}
+
+// Tab switching
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// Filter chip selection
+document.querySelectorAll('.filter-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('selected'));
+    chip.classList.add('selected');
+    selectedFilter = chip.dataset.f;
+  });
+});
+
+function setStatus(msg, success = false, error = false) {
+  statusMsg.textContent = msg;
+  statusMsg.className = 'status' + (success ? ' success' : '') + (error ? ' error' : '');
+}
+
+function showResult(url) {
+  currentVideoURL = url;
+  previewVideo.src = url;
+  downloadBox.style.display = 'block';
+  downloadLink.href = url;
+  setStatus('Done ✅ Preview updated. Aage aur edits kar sakte ho.', true);
+}
+
+async function doTrim() {
+  if (!requireUpload()) return;
+  const start = document.getElementById('trimStart').value;
+  const end = document.getElementById('trimEnd').value;
+  setStatus('Trimming...');
+  try {
+    const res = await fetch(`${BACKEND_URL}/trim`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ filename: currentFilename, start, end })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    currentFilename = data.filename;
+    showResult(data.url);
+  } catch (err) { setStatus('Error: ' + err.message, false, true); }
+}
+
+async function doFilter() {
+  if (!requireUpload()) return;
+  if (!selectedFilter) { setStatus('Pehle koi filter select karo', false, true); return; }
+  setStatus('Applying filter...');
+  try {
+    const res = await fetch(`${BACKEND_URL}/filter`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ filename: currentFilename, filterType: selectedFilter })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    currentFilename = data.filename;
+    showResult(data.url);
+  } catch (err) { setStatus('Error: ' + err.message, false, true); }
+}
+
+async function doText() {
+  if (!requireUpload()) return;
+  const text = document.getElementById('textInput').value;
+  const position = document.getElementById('textPosition').value;
+  const fontsize = document.getElementById('textSize').value;
+  const color = document.getElementById('textColor').value;
+  if (!text) { setStatus('Text likho pehle', false, true); return; }
+  setStatus('Adding text...');
+  try {
+    const res = await fetch(`${BACKEND_URL}/text`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ filename: currentFilename, text, position, fontsize, color })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    currentFilename = data.filename;
+    showResult(data.url);
+  } catch (err) { setStatus('Error: ' + err.message, false, true); }
+}
+
+async function doMusic() {
+  if (!requireUpload()) return;
+  const audioFile = document.getElementById('audioInput').files[0];
+  if (!audioFile) { setStatus('Music file upload karo pehle', false, true); return; }
+  setStatus('Uploading music...');
+  try {
+    const formData = new FormData();
+    formData.append('video', audioFile);
+    const uploadRes = await fetch(`${BACKEND_URL}/upload`, { method: 'POST', body: formData });
+    const uploadData = await uploadRes.json();
+    if (!uploadRes.ok) throw new Error(uploadData.error);
+
+    setStatus('Merging music...');
+    const volume = document.getElementById('musicVolume').value;
+    const mode = document.getElementById('musicMode').value;
+    const res = await fetch(`${BACKEND_URL}/music`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ videoFilename: currentFilename, audioFilename: uploadData.filename, volume, mode })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    currentFilename = data.filename;
+    showResult(data.url);
+  } catch (err) { setStatus('Error: ' + err.message, false, true); }
+}
+
+async function doTransition() {
+  if (!requireUpload()) return;
+  const clip2 = document.getElementById('secondClipInput').files[0];
+  if (!clip2) { setStatus('Doosra clip upload karo pehle', false, true); return; }
+  setStatus('Uploading second clip...');
+  try {
+    const formData = new FormData();
+    formData.append('video', clip2);
+    const uploadRes = await fetch(`${BACKEND_URL}/upload`, { method: 'POST', body: formData });
+    const uploadData = await uploadRes.json();
+    if (!uploadRes.ok) throw new Error(uploadData.error);
+
+    setStatus('Joining clips with transition...');
+    const transition = document.getElementById('transitionType').value;
+    const duration = document.getElementById('transitionDuration').value;
+    const res = await fetch(`${BACKEND_URL}/transition`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ filename1: currentFilename, filename2: uploadData.filename, transition, duration })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    currentFilename = data.filename;
+    showResult(data.url);
+  } catch (err) { setStatus('Error: ' + err.message, false, true); }
+}
+
+function requireUpload() {
+  if (!currentFilename) {
+    setStatus('Pehle video upload karo', false, true);
+    return false;
+  }
+  return true;
+}
+</script>
+
+</body>
+  </html>
