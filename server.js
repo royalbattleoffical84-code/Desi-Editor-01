@@ -5,8 +5,21 @@ const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const ffmpeg = require('fluent-ffmpeg');
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
-ffmpeg.setFfmpegPath(ffmpegPath);
+
+// Prefer system-installed ffmpeg (via Dockerfile apt install), fallback to npm binary
+try {
+  const fsSync = require('fs');
+  if (fsSync.existsSync('/usr/bin/ffmpeg')) {
+    ffmpeg.setFfmpegPath('/usr/bin/ffmpeg');
+    console.log('Using system ffmpeg at /usr/bin/ffmpeg');
+  } else {
+    const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+    ffmpeg.setFfmpegPath(ffmpegPath);
+    console.log('Using npm ffmpeg-installer at', ffmpegPath);
+  }
+} catch (e) {
+  console.error('FFmpeg path setup error:', e.message);
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -66,7 +79,7 @@ app.post('/trim', (req, res) => {
     .duration(duration > 0 ? duration : 5)
     .output(output)
     .on('end', () => res.json({ message: 'Trimmed', url: fileUrl(req, output), filename: path.basename(output) }))
-    .on('error', (err) => res.status(500).json({ error: err.message }))
+    .on('error', (err, stdout, stderr) => res.status(500).json({ error: err.message, details: stderr || 'no ffmpeg log' }))
     .run();
 });
 
@@ -96,7 +109,7 @@ app.post('/filter', (req, res) => {
     .videoFilters(vf)
     .output(output)
     .on('end', () => res.json({ message: 'Filter applied', url: fileUrl(req, output), filename: path.basename(output) }))
-    .on('error', (err) => res.status(500).json({ error: err.message }))
+    .on('error', (err, stdout, stderr) => res.status(500).json({ error: err.message, details: stderr || 'no ffmpeg log' }))
     .run();
 });
 
@@ -123,7 +136,7 @@ app.post('/text', (req, res) => {
     .videoFilters(drawtext)
     .output(output)
     .on('end', () => res.json({ message: 'Text added', url: fileUrl(req, output), filename: path.basename(output) }))
-    .on('error', (err) => res.status(500).json({ error: err.message }))
+    .on('error', (err, stdout, stderr) => res.status(500).json({ error: err.message, details: stderr || 'no ffmpeg log' }))
     .run();
 });
 
@@ -156,7 +169,7 @@ app.post('/music', (req, res) => {
 
   cmd.output(output)
     .on('end', () => res.json({ message: 'Music merged', url: fileUrl(req, output), filename: path.basename(output) }))
-    .on('error', (err) => res.status(500).json({ error: err.message }))
+    .on('error', (err, stdout, stderr) => res.status(500).json({ error: err.message, details: stderr || 'no ffmpeg log' }))
     .run();
 });
 
