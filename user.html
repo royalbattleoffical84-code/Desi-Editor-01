@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>SXO Wallpaper</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<style>
+:root{
+  --bg-primary:#0A1929;
+  --bg-secondary:#0F2438;
+  --bg-card:#132F4C;
+  --bg-card-hover:#17324D;
+  --accent-primary:#00B4D8;
+  --accent-secondary:#0096C7;
+  --accent-glow:rgba(0,180,216,.25);
+  --text-primary:#FFFFFF;
+  --text-secondary:#8FA3B8;
+  --success:#00E676;
+  --danger:#FF5252;
+  --border-radius:16px;
+  --border-radius-sm:10px;
+  --shadow:0 4px 20px rgba(0,180,216,.12);
+}
+[data-theme="light"]{
+  --bg-primary:#F0F5F9;
+  --bg-secondary:#FFFFFF;
+  --bg-card:#FFFFFF;
+  --bg-card-hover:#EAF3F8;
+  --text-primary:#0A1929;
+  --text-secondary:#5A7182;
+  --shadow:0 4px 20px rgba(0,150,199,.1);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow-x:hidden;}
+body{
+  background:var(--bg-primary);color:var(--text-primary);
+  font-family:'Roboto',sans-serif;overscroll-behavior-y:contain;
+  user-select:none;transition:background .3s,color .3s;
+}
+h1,h2,h3,.heading{font-family:'Poppins',sans-serif;}
+::-webkit-scrollbar{display:none;}
+*{scrollbar-width:none;}
+button{font-family:inherit;border:none;outline:none;background:none;cursor:pointer;color:inherit;}
+input{font-family:inherit;outline:none;border:none;background:none;color:inherit;}
+img{-webkit-user-drag:none;pointer-events:none;}
+a{text-decoration:none;color:inherit;}
+
+/* ===== SPLASH ===== */
+#splash{
+  position:fixed;inset:0;background:var(--bg-primary);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:9999;transition:opacity .5s ease, visibility .5s ease;
+}
+#splash.hide{opacity:0;visibility:hidden;}
+.splash-logo{
+  width:90px;height:90px;border-radius:26px;
+  background:linear-gradient(135deg,var(--accent-primary),var(--accent-secondary));
+  display:flex;align-items:center;justify-content:center;font-size:38px;color:#fff;
+  box-shadow:0 0 40px var(--accent-glow);animation:pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.08);}}
+.splash-title{margin-top:20px;font-size:22px;font-weight:700;letter-spacing:.5px;}
+.splash-sub{margin-top:6px;font-size:13px;color:var(--text-secondary);}
+
+/* ===== APP SHELL ===== */
+#app{height:100vh;display:flex;flex-direction:column;}
+
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 18px;background:var(--bg-secondary);
+  position:sticky;top:0;z-index:50;transition:box-shadow .2s, background .3s;
+}
+.topbar.scrolled{box-shadow:0 4px 16px rgba(0,0,0,.2);}
+.topbar h1{font-size:19px;font-weight:700;}
+.topbar-icons{display:flex;gap:8px;}
+.topbar-icon{
+  width:38px;height:38px;border-radius:12px;background:var(--bg-card);
+  display:flex;align-items:center;justify-content:center;font-size:15px;
+  color:var(--text-secondary);transition:.15s;
+}
+.topbar-icon:active{transform:scale(.9);background:var(--bg-card-hover);}
+
+/* search bar */
+#searchBar{
+  max-height:0;overflow:hidden;background:var(--bg-secondary);
+  transition:max-height .3s ease;
+}
+#searchBar.open{max-height:70px;}
+.search-inner{display:flex;align-items:center;gap:10px;padding:0 18px 14px;}
+.search-inner .box{
+  flex:1;display:flex;align-items:center;gap:10px;background:var(--bg-card);
+  border-radius:24px;padding:11px 16px;
+}
+.search-inner input{flex:1;font-size:13px;color:var(--text-primary);user-select:text;}
+.search-inner i{color:var(--text-secondary);font-size:13px;}
+.search-close{width:34px;height:34px;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);}
+
+/* category chips */
+.chip-row{
+  display:flex;gap:8px;overflow-x:auto;padding:14px 18px;background:var(--bg-secondary);
+}
+.chip{
+  flex-shrink:0;padding:9px 16px;border-radius:20px;background:var(--bg-card);
+  font-size:12px;font-weight:500;color:var(--text-secondary);
+  display:flex;align-items:center;gap:6px;transition:.2s;white-space:nowrap;
+}
+.chip.active{background:var(--accent-primary);color:#fff;}
+.chip:active{transform:scale(.95);}
+
+.content{flex:1;overflow-y:auto;padding:16px;padding-bottom:100px;}
+.tab-content{display:none;animation:fadeIn .3s ease;}
+.tab-content.active{display:block;}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+
+/* pull to refresh */
+.ptr-indicator{
+  display:flex;justify-content:center;align-items:center;height:0;overflow:hidden;
+  transition:height .2s;color:var(--accent-primary);
+}
+.ptr-indicator.show{height:44px;}
+.ptr-indicator i{font-size:18px;}
+
+/* wallpaper grid */
+.grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:12px;
+}
+.wp-card{
+  position:relative;border-radius:var(--border-radius);overflow:hidden;
+  background:var(--bg-card);aspect-ratio:3/4.2;
+  animation:cardIn .4s ease backwards;
+}
+@keyframes cardIn{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+.wp-card img{width:100%;height:100%;object-fit:cover;display:block;}
+.wp-card .overlay{
+  position:absolute;bottom:0;left:0;right:0;padding:12px 10px 10px;
+  background:linear-gradient(to top, rgba(0,0,0,.75), transparent);
+}
+.wp-card .overlay h4{font-size:12px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.wp-card .badge{
+  position:absolute;top:8px;left:8px;font-size:9px;font-weight:700;
+  padding:4px 8px;border-radius:8px;color:#fff;letter-spacing:.3px;
+}
+.badge.trending{background:linear-gradient(135deg,#FF6B6B,#FFA500);}
+.badge.new{background:linear-gradient(135deg,#00E676,#00B4D8);}
+.wp-card .fav-btn{
+  position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:50%;
+  background:rgba(0,0,0,.4);backdrop-filter:blur(4px);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;
+  transition:.2s;
+}
+.wp-card .fav-btn.active{color:#FF5252;}
+.wp-card .fav-btn:active{transform:scale(.85);}
+
+/* skeleton */
+.skeleton{
+  background:linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
+  background-size:200% 100%;animation:shimmer 1.4s infinite;
+  border-radius:var(--border-radius);aspect-ratio:3/4.2;
+}
+@keyframes shimmer{0%{background-position:200% 0;}100%{background-position:-200% 0;}}
+
+.empty-state{text-align:center;padding:60px 20px;color:var(--text-secondary);}
+.empty-state i{font-size:44px;margin-bottom:14px;opacity:.35;}
+.empty-state p{font-size:13px;}
+
+/* categories tab */
+.cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.cat-card{
+  background:var(--bg-card);border-radius:var(--border-radius);
+  padding:20px 14px;text-align:center;transition:.15s;
+}
+.cat-card:active{transform:scale(.96);}
+.cat-card i{font-size:26px;color:var(--accent-primary);margin-bottom:10px;display:block;}
+.cat-card h4{font-size:13px;font-weight:600;}
+.cat-card p{font-size:10px;color:var(--text-secondary);margin-top:3px;}
+
+/* settings */
+.settings-card{
+  background:var(--bg-card);border-radius:var(--border-radius);padding:16px;margin-bottom:12px;
+}
+.settings-row{display:flex;align-items:center;justify-content:between;justify-content:space-between;padding:8px 0;}
+.settings-row .left{display:flex;align-items:center;gap:12px;}
+.settings-row i{width:20px;color:var(--accent-primary);font-size:15px;}
+.settings-row span{font-size:13px;}
+.switch{width:44px;height:24px;background:var(--bg-secondary);border-radius:20px;position:relative;transition:.2s;flex-shrink:0;}
+.switch.on{background:var(--accent-primary);}
+.switch::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:.2s;}
+.switch.on::after{left:23px;}
+.about-text{font-size:12px;color:var(--text-secondary);line-height:1.6;margin-top:8px;}
+
+/* bottom nav */
+.bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;background:var(--bg-secondary);
+  display:flex;padding:8px 0 max(8px,env(safe-area-inset-bottom));
+  z-index:60;box-shadow:0 -2px 16px rgba(0,0,0,.15);
+}
+.nav-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:6px 0;color:var(--text-secondary);transition:.15s;position:relative;
+}
+.nav-item i{font-size:19px;}
+.nav-item span{font-size:10px;font-weight:500;}
+.nav-item.active{color:var(--accent-primary);}
+.nav-item.active::before{
+  content:'';position:absolute;top:-8px;width:4px;height:4px;border-radius:50%;background:var(--accent-primary);
+}
+.nav-item:active{transform:scale(.9);}
+
+/* fullscreen preview */
+#previewScreen{
+  position:fixed;inset:0;background:#000;z-index:500;
+  display:none;flex-direction:column;
+}
+#previewScreen.show{display:flex;animation:fadeIn .25s ease;}
+.preview-top{
+  position:absolute;top:0;left:0;right:0;z-index:10;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 16px calc(16px + env(safe-area-inset-top));
+  background:linear-gradient(to bottom, rgba(0,0,0,.6), transparent);
+}
+.preview-back{
+  width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,.15);
+  backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;color:#fff;
+}
+.preview-title{color:#fff;font-size:14px;font-weight:600;flex:1;margin:0 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.preview-likes{display:flex;align-items:center;gap:5px;color:#fff;font-size:12px;background:rgba(255,255,255,.15);backdrop-filter:blur(6px);padding:6px 10px;border-radius:16px;}
+.preview-img-wrap{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;}
+.preview-img-wrap img{width:100%;height:100%;object-fit:cover;}
+.heart-burst{
+  position:absolute;font-size:80px;color:#fff;opacity:0;pointer-events:none;
+  filter:drop-shadow(0 0 20px rgba(0,0,0,.5));
+}
+.heart-burst.animate{animation:heartBurst .8s ease forwards;}
+@keyframes heartBurst{
+  0%{opacity:0;transform:scale(.3);}
+  30%{opacity:1;transform:scale(1.2);}
+  50%{transform:scale(1);}
+  100%{opacity:0;transform:scale(1.4);}
+}
+.preview-bottom{
+  padding:16px 16px calc(16px + env(safe-area-inset-bottom));
+  background:linear-gradient(to top, rgba(0,0,0,.7), transparent);
+  display:flex;gap:10px;
+}
+.preview-action{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;
+  color:#fff;font-size:10px;padding:10px 0;border-radius:14px;background:rgba(255,255,255,.12);
+  backdrop-filter:blur(6px);transition:.15s;
+}
+.preview-action:active{transform:scale(.92);}
+.preview-action.primary{background:linear-gradient(135deg,var(--accent-primary),var(--accent-secondary));}
+.preview-action i{font-size:17px;}
+.preview-action.fav-active i{color:#FF5252;}
+
+/* bottom sheet */
+.sheet-backdrop{
+  position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:600;
+  display:none;backdrop-filter:blur(2px);
+}
+.sheet-backdrop.show{display:block;animation:fadeIn .2s ease;}
+.sheet{
+  position:fixed;bottom:0;left:0;right:0;background:var(--bg-secondary);
+  border-radius:24px 24px 0 0;padding:20px 20px calc(20px + env(safe-area-inset-bottom));
+  z-index:601;transform:translateY(100%);transition:transform .3s cubic-bezier(.2,.9,.3,1);
+}
+.sheet.show{transform:translateY(0);}
+.sheet-handle{width:40px;height:4px;background:var(--text-secondary);opacity:.3;border-radius:4px;margin:0 auto 18px;}
+.sheet h3{font-size:15px;font-weight:700;margin-bottom:16px;text-align:center;}
+.sheet-option{
+  display:flex;align-items:center;gap:14px;padding:14px 10px;border-radius:12px;
+  transition:.15s;
+}
+.sheet-option:active{background:var(--bg-card);}
+.sheet-option i{width:24px;font-size:16px;color:var(--accent-primary);}
+.sheet-option span{font-size:14px;font-weight:500;}
+
+/* toast */
+.snackbar{
+  position:fixed;bottom:90px;left:20px;right:20px;
+  background:#1C3D5A;color:#fff;padding:14px 18px;border-radius:12px;
+  font-size:13px;display:flex;align-items:center;gap:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,.4);
+  transform:translateY(100px);opacity:0;transition:.3s ease;z-index:700;
+}
+.snackbar.show{transform:translateY(0);opacity:1;}
+.snackbar i{color:var(--success);}
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="splash-logo"><i class="fa-solid fa-images"></i></div>
+  <div class="splash-title">SXO Wallpaper</div>
+  <div class="splash-sub">Beautiful wallpapers, every day</div>
+</div>
+
+<div id="app">
+  <!-- TOP BAR -->
+  <div class="topbar" id="topbar">
+    <h1>SXO Wallpaper</h1>
+    <div class="topbar-icons">
+      <div class="topbar-icon" id="searchIcon"><i class="fa-solid fa-magnifying-glass"></i></div>
+      <div class="topbar-icon" id="themeToggle"><i class="fa-solid fa-moon"></i></div>
+    </div>
+  </div>
+
+  <!-- SEARCH -->
+  <div id="searchBar">
+    <div class="search-inner">
+      <div class="box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="searchInput" placeholder="Search wallpapers...">
+      </div>
+      <div class="search-close" id="searchClose"><i class="fa-solid fa-xmark"></i></div>
+    </div>
+  </div>
+
+  <!-- CATEGORY CHIPS -->
+  <div class="chip-row" id="chipRow">
+    <div class="chip active" data-cat="All">All</div>
+  </div>
+
+  <div class="content" id="scrollContent">
+    <div class="ptr-indicator" id="ptrIndicator"><i class="fa-solid fa-arrows-rotate fa-spin"></i></div>
+
+    <!-- HOME TAB -->
+    <div class="tab-content active" id="tab-home">
+      <div class="grid" id="wallpaperGrid">
+        <div class="skeleton"></div><div class="skeleton"></div>
+        <div class="skeleton"></div><div class="skeleton"></div>
+      </div>
+    </div>
+
+    <!-- CATEGORIES TAB -->
+    <div class="tab-content" id="tab-categories">
+      <div class="cat-grid" id="categoryGrid"></div>
+    </div>
+
+    <!-- FAVORITES TAB -->
+    <div class="tab-content" id="tab-favorites">
+      <div class="grid" id="favGrid"></div>
+    </div>
+
+    <!-- SETTINGS TAB -->
+    <div class="tab-content" id="tab-settings">
+      <div class="settings-card">
+        <div class="settings-row">
+          <div class="left"><i class="fa-solid fa-circle-half-stroke"></i><span>Dark Mode</span></div>
+          <div class="switch on" id="darkModeSwitch"></div>
+        </div>
+      </div>
+      <div class="settings-card">
+        <div class="settings-row" style="padding-bottom:0"><div class="left"><i class="fa-solid fa-trash"></i><span>Clear Favorites</span></div></div>
+        <button class="settings-row" id="clearFavBtn" style="width:100%;justify-content:flex-start;padding-top:4px;"><span style="color:var(--danger);font-size:12px;margin-left:32px;">Remove all saved favorites</span></button>
+      </div>
+      <div class="settings-card">
+        <div class="settings-row"><div class="left"><i class="fa-solid fa-circle-info"></i><span>About SXO Wallpaper</span></div></div>
+        <p class="about-text">SXO Wallpaper brings you a curated collection of high-quality wallpapers across Nature, Abstract, Anime, Gaming and more. Set, download and favorite your best picks — all free.</p>
+        <p class="about-text">Version 1.0.0</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <div class="nav-item active" data-tab="home"><i class="fa-solid fa-house"></i><span>Home</span></div>
+    <div class="nav-item" data-tab="categories"><i class="fa-solid fa-th-large"></i><span>Categories</span></div>
+    <div class="nav-item" data-tab="favorites"><i class="fa-solid fa-heart"></i><span>Favorites</span></div>
+    <div class="nav-item" data-tab="settings"><i class="fa-solid fa-user-cog"></i><span>Settings</span></div>
+  </div>
+</div>
+
+<!-- FULLSCREEN PREVIEW -->
+<div id="previewScreen">
+  <div class="preview-top">
+    <div class="preview-back" id="previewBack"><i class="fa-solid fa-arrow-left"></i></div>
+    <div class="preview-title" id="previewTitle"></div>
+    <div class="preview-likes"><i class="fa-solid fa-heart" style="color:#FF5252"></i><span id="previewLikes">0</span></div>
+  </div>
+  <div class="preview-img-wrap" id="previewImgWrap">
+    <img id="previewImg" src="">
+    <i class="fa-solid fa-heart heart-burst" id="heartBurst"></i>
+  </div>
+  <div class="preview-bottom">
+    <div class="preview-action primary" id="setWallBtn"><i class="fa-solid fa-mobile-screen-button"></i><span>Set</span></div>
+    <div class="preview-action" id="downloadBtn"><i class="fa-solid fa-download"></i><span>Download</span></div>
+    <div class="preview-action" id="favBtn"><i class="fa-regular fa-heart"></i><span>Favorite</span></div>
+    <div class="preview-action" id="shareBtn"><i class="fa-solid fa-share-alt"></i><span>Share</span></div>
+  </div>
+</div>
+
+<!-- SET WALLPAPER SHEET -->
+<div class="sheet-backdrop" id="sheetBackdrop"></div>
+<div class="sheet" id="setSheet">
+  <div class="sheet-handle"></div>
+  <h3>Set Wallpaper As</h3>
+  <div class="sheet-option" data-type="home"><i class="fa-solid fa-house"></i><span>Home Screen</span></div>
+  <div class="sheet-option" data-type="lock"><i class="fa-solid fa-lock"></i><span>Lock Screen</span></div>
+  <div class="sheet-option" data-type="both"><i class="fa-solid fa-mobile-screen"></i><span>Home & Lock Screen</span></div>
+</div>
+
+<div class="snackbar" id="snackbar"><i class="fa-solid fa-circle-check"></i><span id="snackbarText">Done</span></div>
+
+<script>
+/* ================= FIREBASE INIT ================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyDnGiqLzxbVEADhr7UfJ2SPReyGyAhTlsA",
+  authDomain: "sxo-walpaper.firebaseapp.com",
+  databaseURL: "https://sxo-walpaper-default-rtdb.firebaseio.com",
+  projectId: "sxo-walpaper",
+  storageBucket: "sxo-walpaper.firebasestorage.app",
+  messagingSenderId: "289936016376",
+  appId: "1:289936016376:web:818b424e8b379bd9c00c0d",
+  measurementId: "G-JM23DKSLRV"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let allWallpapers = {};
+let allCategories = {};
+let currentCategory = 'All';
+let currentSearch = '';
+let currentTab = 'home';
+let activeWallpaperId = null;
+let favorites = JSON.parse(localStorage.getItem('sxo_favorites') || '[]');
+
+/* ================= SPLASH ================= */
+setTimeout(()=>{ document.getElementById('splash').classList.add('hide'); }, 1300);
+
+/* ================= THEME ================= */
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('themeToggle').innerHTML = theme==='light' ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+  document.getElementById('darkModeSwitch').classList.toggle('on', theme==='dark');
+  localStorage.setItem('sxo_theme', theme);
+}
+let savedTheme = localStorage.getItem('sxo_theme') || 'dark';
+applyTheme(savedTheme);
+
+document.getElementById('themeToggle').addEventListener('click', ()=>{
+  const cur = document.documentElement.getAttribute('data-theme')==='light' ? 'dark' : 'light';
+  applyTheme(cur);
+});
+document.getElementById('darkModeSwitch').addEventListener('click', function(){
+  const cur = document.documentElement.getAttribute('data-theme')==='light' ? 'dark' : 'light';
+  applyTheme(cur);
+});
+
+/* ================= TOPBAR SCROLL SHADOW ================= */
+document.getElementById('scrollContent').addEventListener('scroll', function(){
+  document.getElementById('topbar').classList.toggle('scrolled', this.scrollTop > 4);
+});
+
+/* ================= SEARCH ================= */
+document.getElementById('searchIcon').addEventListener('click', ()=>{
+  document.getElementById('searchBar').classList.add('open');
+  setTimeout(()=>document.getElementById('searchInput').focus(), 200);
+});
+document.getElementById('searchClose').addEventListener('click', ()=>{
+  document.getElementById('searchBar').classList.remove('open');
+  document.getElementById('searchInput').value='';
+  currentSearch='';
+  renderGrid();
+});
+document.getElementById('searchInput').addEventListener('input', function(){
+  currentSearch = this.value.trim().toLowerCase();
+  renderGrid();
+});
+
+/* ================= SNACKBAR ================= */
+function showSnack(msg){
+  const sb = document.getElementById('snackbar');
+  document.getElementById('snackbarText').textContent = msg;
+  sb.classList.add('show');
+  setTimeout(()=> sb.classList.remove('show'), 2200);
+}
+
+/* ================= BOTTOM NAV / TABS ================= */
+document.querySelectorAll('.nav-item').forEach(item=>{
+  item.addEventListener('click', ()=>{
+    document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+    item.classList.add('active');
+    currentTab = item.dataset.tab;
+    document.getElementById('tab-'+currentTab).classList.add('active');
+    document.getElementById('chipRow').style.display = currentTab==='home' ? 'flex' : 'none';
+    if(currentTab==='favorites') renderFavorites();
+    if(currentTab==='categories') renderCategoryGrid();
+  });
+});
+
+/* ================= FIREBASE LISTENERS ================= */
+db.ref('categories').on('value', snap=>{
+  allCategories = snap.val() || {};
+  renderChips();
+  if(currentTab==='categories') renderCategoryGrid();
+});
+
+db.ref('wallpapers').on('value', snap=>{
+  allWallpapers = snap.val() || {};
+  renderGrid();
+  if(currentTab==='favorites') renderFavorites();
+});
+
+/* ================= CHIPS ================= */
+function renderChips(){
+  const wrap = document.getElementById('chipRow');
+  let html = `<div class="chip ${currentCategory==='All'?'active':''}" data-cat="All">All</div>`;
+  Object.values(allCategories).forEach(c=>{
+    html += `<div class="chip ${currentCategory===c.name?'active':''}" data-cat="${c.name}"><i class="fa-solid ${c.icon||'fa-tag'}"></i>${c.name}</div>`;
+  });
+  wrap.innerHTML = html;
+  wrap.querySelectorAll('.chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      currentCategory = chip.dataset.cat;
+      wrap.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      renderGrid();
+    });
+  });
+}
+
+/* ================= GRID RENDER ================= */
+function timeIsNew(ts){ return (Date.now() - (ts||0)) < (1000*60*60*24*3); } // new if <3 days
+
+function renderGrid(){
+  const grid = document.getElementById('wallpaperGrid');
+  let entries = Object.entries(allWallpapers);
+  if(currentCategory!=='All') entries = entries.filter(([id,w])=>w.category===currentCategory);
+  if(currentSearch) entries = entries.filter(([id,w])=> w.title.toLowerCase().includes(currentSearch) || (w.tags||'').toLowerCase().includes(currentSearch));
+  entries.sort((a,b)=>(b[1].timestamp||0)-(a[1].timestamp||0));
+
+  if(entries.length===0){
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><i class="fa-solid fa-image"></i><p>No wallpapers found</p></div>';
+    return;
+  }
+
+  grid.innerHTML = entries.map(([id,w],idx)=>`
+    <div class="wp-card" style="animation-delay:${idx*0.04}s" data-id="${id}">
+      <img src="${w.imageUrl}" loading="lazy" onerror="this.parentElement.style.display='none'">
+      ${w.trending?'<span class="badge trending">🔥 TRENDING</span>':(timeIsNew(w.timestamp)?'<span class="badge new">✨ NEW</span>':'')}
+      <div class="fav-btn ${favorites.includes(id)?'active':''}" data-favid="${id}"><i class="fa-${favorites.includes(id)?'solid':'regular'} fa-heart"></i></div>
+      <div class="overlay"><h4>${w.title}</h4></div>
+    </div>
+  `).join('');
+
+  grid.querySelectorAll('.wp-card').forEach(card=>{
+    card.addEventListener('click', (e)=>{
+      if(e.target.closest('.fav-btn')) return;
+      openPreview(card.dataset.id);
+    });
+  });
+  grid.querySelectorAll('.fav-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      toggleFavorite(btn.dataset.favid);
+      renderGrid();
+    });
+  });
+}
+
+/* ================= CATEGORY GRID ================= */
+function renderCategoryGrid(){
+  const wrap = document.getElementById('categoryGrid');
+  const entries = Object.entries(allCategories);
+  if(entries.length===0){
+    wrap.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><i class="fa-solid fa-layer-group"></i><p>No categories yet</p></div>';
+    return;
+  }
+  wrap.innerHTML = entries.map(([id,c])=>{
+    const count = Object.values(allWallpapers).filter(w=>w.category===c.name).length;
+    return `
+    <div class="cat-card" data-cat="${c.name}">
+      <i class="fa-solid ${c.icon||'fa-tag'}"></i>
+      <h4>${c.name}</h4>
+      <p>${count} wallpapers</p>
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('.cat-card').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      currentCategory = card.dataset.cat;
+      document.querySelector('[data-tab="home"]').click();
+      renderChips();
+      renderGrid();
+    });
+  });
+}
+
+/* ================= FAVORITES ================= */
+function toggleFavorite(id){
+  const idx = favorites.indexOf(id);
+  if(idx>-1){ favorites.splice(idx,1); showSnack('Removed from favorites'); }
+  else{ favorites.push(id); showSnack('Added to favorites'); }
+  localStorage.setItem('sxo_favorites', JSON.stringify(favorites));
+}
+
+function renderFavorites(){
+  const grid = document.getElementById('favGrid');
+  const entries = favorites.map(id=>[id, allWallpapers[id]]).filter(([id,w])=>w);
+  if(entries.length===0){
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><i class="fa-solid fa-heart-crack"></i><p>No favorites yet.<br>Tap the heart icon to save wallpapers.</p></div>';
+    return;
+  }
+  grid.innerHTML = entries.map(([id,w],idx)=>`
+    <div class="wp-card" style="animation-delay:${idx*0.04}s" data-id="${id}">
+      <img src="${w.imageUrl}" loading="lazy">
+      <div class="fav-btn active" data-favid="${id}"><i class="fa-solid fa-heart"></i></div>
+      <div class="overlay"><h4>${w.title}</h4></div>
+    </div>
+  `).join('');
+  grid.querySelectorAll('.wp-card').forEach(card=>{
+    card.addEventListener('click', (e)=>{
+      if(e.target.closest('.fav-btn')) return;
+      openPreview(card.dataset.id);
+    });
+  });
+  grid.querySelectorAll('.fav-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      toggleFavorite(btn.dataset.favid);
+      renderFavorites();
+    });
+  });
+}
+
+document.getElementById('clearFavBtn').addEventListener('click', ()=>{
+  if(confirm('Remove all favorites?')){
+    favorites = [];
+    localStorage.setItem('sxo_favorites', JSON.stringify(favorites));
+    showSnack('Favorites cleared');
+    renderGrid();
+  }
+});
+
+/* ================= FULLSCREEN PREVIEW ================= */
+function openPreview(id){
+  const w = allWallpapers[id];
+  if(!w) return;
+  activeWallpaperId = id;
+  document.getElementById('previewImg').src = w.imageUrl;
+  document.getElementById('previewTitle').textContent = w.title;
+  document.getElementById('previewLikes').textContent = w.likes||0;
+  const favBtn = document.getElementById('favBtn');
+  favBtn.classList.toggle('fav-active', favorites.includes(id));
+  favBtn.querySelector('i').className = favorites.includes(id) ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
+  document.getElementById('previewScreen').classList.add('show');
+}
+
+document.getElementById('previewBack').addEventListener('click', ()=>{
+  document.getElementById('previewScreen').classList.remove('show');
+});
+
+/* double tap to like */
+let lastTap = 0;
+document.getElementById('previewImgWrap').addEventListener('click', function(e){
+  const now = Date.now();
+  if(now - lastTap < 300){
+    likeWallpaper();
+    const heart = document.getElementById('heartBurst');
+    heart.style.left = (e.offsetX-40)+'px';
+    heart.style.top = (e.offsetY-40)+'px';
+    heart.classList.remove('animate');
+    void heart.offsetWidth;
+    heart.classList.add('animate');
+  }
+  lastTap = now;
+});
+
+function likeWallpaper(){
+  if(!activeWallpaperId) return;
+  const newLikes = (allWallpapers[activeWallpaperId].likes||0)+1;
+  db.ref('wallpapers/'+activeWallpaperId+'/likes').set(newLikes);
+  document.getElementById('previewLikes').textContent = newLikes;
+}
+
+/* favorite in preview */
+document.getElementById('favBtn').addEventListener('click', function(){
+  toggleFavorite(activeWallpaperId);
+  const isFav = favorites.includes(activeWallpaperId);
+  this.classList.toggle('fav-active', isFav);
+  this.querySelector('i').className = isFav ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
+  renderGrid();
+});
+
+/* download */
+document.getElementById('downloadBtn').addEventListener('click', ()=>{
+  downloadImage();
+});
+function downloadImage(){
+  if(!activeWallpaperId) return;
+  const w = allWallpapers[activeWallpaperId];
+  const newDownloads = (w.downloads||0)+1;
+  db.ref('wallpapers/'+activeWallpaperId+'/downloads').set(newDownloads);
+  const a = document.createElement('a');
+  a.href = w.imageUrl;
+  a.download = (w.title||'wallpaper').replace(/\s+/g,'_')+'.jpg';
+  a.target = '_blank';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  showSnack('Downloading wallpaper...');
+}
+
+/* share */
+document.getElementById('shareBtn').addEventListener('click', ()=>{
+  if(!activeWallpaperId) return;
+  const w = allWallpapers[activeWallpaperId];
+  if(navigator.share){
+    navigator.share({ title: w.title, text: 'Check out this wallpaper on SXO Wallpaper!', url: w.imageUrl }).catch(()=>{});
+  } else {
+    navigator.clipboard.writeText(w.imageUrl).then(()=> showSnack('Link copied to clipboard'));
+  }
+});
+
+/* ================= SET WALLPAPER SHEET ================= */
+document.getElementById('setWallBtn').addEventListener('click', ()=>{
+  document.getElementById('sheetBackdrop').classList.add('show');
+  document.getElementById('setSheet').classList.add('show');
+});
+document.getElementById('sheetBackdrop').addEventListener('click', closeSheet);
+function closeSheet(){
+  document.getElementById('sheetBackdrop').classList.remove('show');
+  document.getElementById('setSheet').classList.remove('show');
+}
+document.querySelectorAll('.sheet-option').forEach(opt=>{
+  opt.addEventListener('click', ()=>{
+    setWallpaper(opt.dataset.type);
+    closeSheet();
+  });
+});
+
+function setWallpaper(type){
+  if(!activeWallpaperId) return;
+  const w = allWallpapers[activeWallpaperId];
+  /* Native Android WebView bridge hook (Sketchware/Android Studio JavascriptInterface) */
+  if(window.Android && window.Android.setWallpaper){
+    window.Android.setWallpaper(w.imageUrl, type);
+    showSnack('Wallpaper set successfully!');
+  } else {
+    /* Browser fallback: download + instruct */
+    downloadImage();
+    showSnack('Image downloaded! Set it manually from Gallery.');
+  }
+}
+
+/* ================= PULL TO REFRESH ================= */
+let touchStartY = 0;
+const scrollEl = document.getElementById('scrollContent');
+const ptr = document.getElementById('ptrIndicator');
+scrollEl.addEventListener('touchstart', e=>{ if(scrollEl.scrollTop===0) touchStartY = e.touches[0].clientY; });
+scrollEl.addEventListener('touchmove', e=>{
+  if(scrollEl.scrollTop===0 && touchStartY){
+    const diff = e.touches[0].clientY - touchStartY;
+    if(diff > 60) ptr.classList.add('show');
+  }
+});
+scrollEl.addEventListener('touchend', ()=>{
+  if(ptr.classList.contains('show')){
+    setTimeout(()=>{ ptr.classList.remove('show'); showSnack('Refreshed'); }, 600);
+  }
+  touchStartY = 0;
+});
+</script>
+</body>
+</html>
