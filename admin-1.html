@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SXO Wallpaper — Admin</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<style>
+:root{
+  --bg-primary:#0A1929;
+  --bg-secondary:#0F2438;
+  --bg-card:#132F4C;
+  --bg-card-hover:#17324D;
+  --accent-primary:#00B4D8;
+  --accent-secondary:#0096C7;
+  --accent-glow:rgba(0,180,216,.25);
+  --text-primary:#FFFFFF;
+  --text-secondary:#8FA3B8;
+  --success:#00E676;
+  --danger:#FF5252;
+  --warning:#FFB300;
+  --border-radius:16px;
+  --border-radius-sm:10px;
+  --shadow:0 4px 20px rgba(0,180,216,.12);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow-x:hidden;}
+body{
+  background:var(--bg-primary);
+  color:var(--text-primary);
+  font-family:'Roboto',sans-serif;
+  overscroll-behavior:none;
+  user-select:none;
+}
+h1,h2,h3,.heading{font-family:'Poppins',sans-serif;}
+::-webkit-scrollbar{display:none;}
+*{scrollbar-width:none;}
+button{font-family:inherit;border:none;outline:none;background:none;cursor:pointer;color:inherit;}
+input,select,textarea{font-family:inherit;outline:none;border:none;background:none;color:inherit;}
+img{-webkit-user-drag:none;}
+a{text-decoration:none;color:inherit;}
+
+/* ===== SPLASH ===== */
+#splash{
+  position:fixed;inset:0;background:var(--bg-primary);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:9999;transition:opacity .5s ease, visibility .5s ease;
+}
+#splash.hide{opacity:0;visibility:hidden;}
+.splash-logo{
+  width:90px;height:90px;border-radius:26px;
+  background:linear-gradient(135deg,var(--accent-primary),var(--accent-secondary));
+  display:flex;align-items:center;justify-content:center;
+  font-size:38px;color:#fff;
+  box-shadow:0 0 40px var(--accent-glow);
+  animation:pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.08);}}
+.splash-title{margin-top:20px;font-size:22px;font-weight:700;letter-spacing:.5px;}
+.splash-sub{margin-top:6px;font-size:13px;color:var(--text-secondary);}
+
+/* ===== LOGIN ===== */
+#loginScreen{
+  position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 50% 0%, #10304a 0%, var(--bg-primary) 60%);
+  padding:24px;z-index:100;
+}
+.login-card{
+  width:100%;max-width:380px;background:var(--bg-card);
+  border-radius:20px;padding:32px 26px;box-shadow:var(--shadow);
+  border:1px solid rgba(255,255,255,.05);
+  animation:fadeUp .5s ease;
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+.login-icon{
+  width:64px;height:64px;border-radius:18px;margin:0 auto 18px;
+  background:linear-gradient(135deg,var(--accent-primary),var(--accent-secondary));
+  display:flex;align-items:center;justify-content:center;font-size:26px;
+}
+.login-card h2{text-align:center;font-size:20px;font-weight:700;margin-bottom:4px;}
+.login-card p{text-align:center;font-size:13px;color:var(--text-secondary);margin-bottom:24px;}
+.input-group{margin-bottom:16px;}
+.input-group label{font-size:12px;color:var(--text-secondary);margin-bottom:6px;display:block;font-weight:500;}
+.input-wrap{
+  display:flex;align-items:center;gap:10px;
+  background:var(--bg-secondary);border-radius:var(--border-radius-sm);
+  padding:13px 14px;border:1px solid rgba(255,255,255,.06);
+  transition:border-color .2s;
+}
+.input-wrap:focus-within{border-color:var(--accent-primary);}
+.input-wrap i{color:var(--text-secondary);font-size:14px;}
+.input-wrap input{flex:1;color:var(--text-primary);font-size:14px;user-select:text;}
+.btn-primary{
+  width:100%;padding:14px;border-radius:var(--border-radius-sm);
+  background:linear-gradient(135deg,var(--accent-primary),var(--accent-secondary));
+  color:#fff;font-weight:700;font-size:14px;margin-top:6px;
+  box-shadow:0 4px 16px var(--accent-glow);
+  transition:transform .15s;
+}
+.btn-primary:active{transform:scale(.97);}
+.login-error{
+  color:var(--danger);font-size:12px;text-align:center;margin-top:12px;
+  display:none;
+}
+
+/* ===== APP SHELL ===== */
+#app{display:none;height:100vh;flex-direction:column;}
+#app.show{display:flex;}
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 18px;background:var(--bg-secondary);
+  border-bottom:1px solid rgba(255,255,255,.05);
+  position:sticky;top:0;z-index:50;
+}
+.topbar h1{font-size:18px;font-weight:700;}
+.topbar-icon{
+  width:38px;height:38px;border-radius:12px;background:var(--bg-card);
+  display:flex;align-items:center;justify-content:center;font-size:15px;
+  color:var(--text-secondary);transition:.15s;
+}
+.topbar-icon:active{transform:scale(.92);background:var(--bg-card-hover);}
+
+.content{flex:1;overflow-y:auto;padding:18px;padding-bottom:90px;}
+.section{display:none;animation:fadeIn .3s ease;}
+.section.active{display:block;}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+
+/* stats */
+.stats-row{display:flex;gap:12px;margin-bottom:20px;}
+.stat-card{
+  flex:1;background:var(--bg-card);border-radius:var(--border-radius);
+  padding:18px 14px;border:1px solid rgba(255,255,255,.05);
+}
+.stat-card i{font-size:18px;color:var(--accent-primary);margin-bottom:10px;display:block;}
+.stat-card .num{font-size:24px;font-weight:800;font-family:'Poppins',sans-serif;}
+.stat-card .lbl{font-size:11px;color:var(--text-secondary);margin-top:2px;}
+
+.card{
+  background:var(--bg-card);border-radius:var(--border-radius);
+  padding:18px;margin-bottom:14px;border:1px solid rgba(255,255,255,.05);
+}
+.card h3{font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.card h3 i{color:var(--accent-primary);font-size:14px;}
+
+.preview-box{
+  width:100%;height:140px;border-radius:var(--border-radius-sm);
+  background:var(--bg-secondary);margin-bottom:14px;
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;border:1px dashed rgba(255,255,255,.1);
+}
+.preview-box img{width:100%;height:100%;object-fit:cover;}
+.preview-box .ph{color:var(--text-secondary);font-size:12px;text-align:center;}
+.preview-box .ph i{font-size:22px;display:block;margin-bottom:6px;}
+
+.toggle-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 0;
+}
+.toggle-row span{font-size:13px;color:var(--text-secondary);}
+.switch{width:44px;height:24px;background:var(--bg-secondary);border-radius:20px;position:relative;transition:.2s;flex-shrink:0;}
+.switch.on{background:var(--accent-primary);}
+.switch::after{
+  content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;
+  background:#fff;border-radius:50%;transition:.2s;
+}
+.switch.on::after{left:23px;}
+
+.btn-block{
+  width:100%;padding:14px;border-radius:var(--border-radius-sm);
+  background:linear-gradient(135deg,var(--accent-primary),var(--accent-secondary));
+  color:#fff;font-weight:700;font-size:14px;margin-top:6px;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  box-shadow:0 4px 16px var(--accent-glow);transition:transform .15s;
+}
+.btn-block:active{transform:scale(.97);}
+.btn-block.secondary{background:var(--bg-secondary);box-shadow:none;color:var(--text-primary);border:1px solid rgba(255,255,255,.08);}
+
+.search-input{
+  display:flex;align-items:center;gap:10px;background:var(--bg-secondary);
+  border-radius:var(--border-radius-sm);padding:12px 14px;margin-bottom:16px;
+  border:1px solid rgba(255,255,255,.06);
+}
+.search-input i{color:var(--text-secondary);font-size:13px;}
+.search-input input{flex:1;font-size:13px;color:var(--text-primary);user-select:text;}
+
+.list-item{
+  display:flex;align-items:center;gap:12px;padding:12px;
+  background:var(--bg-card);border-radius:var(--border-radius-sm);
+  margin-bottom:10px;border:1px solid rgba(255,255,255,.05);
+}
+.list-item img{width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--bg-secondary);flex-shrink:0;}
+.list-item .info{flex:1;min-width:0;}
+.list-item .info h4{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.list-item .info p{font-size:11px;color:var(--text-secondary);margin-top:2px;}
+.list-item .badges{display:flex;gap:4px;margin-top:4px;}
+.mini-badge{font-size:9px;padding:2px 6px;border-radius:6px;background:var(--bg-secondary);color:var(--accent-primary);font-weight:600;}
+.list-actions{display:flex;gap:6px;flex-shrink:0;}
+.icon-btn{
+  width:32px;height:32px;border-radius:9px;background:var(--bg-secondary);
+  display:flex;align-items:center;justify-content:center;font-size:12px;
+  color:var(--text-secondary);transition:.15s;
+}
+.icon-btn:active{transform:scale(.9);}
+.icon-btn.danger{color:var(--danger);}
+.icon-btn.edit{color:var(--warning);}
+
+.cat-chip-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+.cat-tag{
+  display:flex;align-items:center;gap:8px;background:var(--bg-secondary);
+  padding:8px 12px;border-radius:20px;font-size:12px;
+}
+.cat-tag i{color:var(--accent-primary);font-size:11px;}
+.cat-tag .del-cat{color:var(--danger);margin-left:4px;font-size:11px;}
+
+select.styled{
+  width:100%;background:var(--bg-secondary);border-radius:var(--border-radius-sm);
+  padding:13px 14px;font-size:14px;color:var(--text-primary);
+  border:1px solid rgba(255,255,255,.06);appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238FA3B8' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center;
+}
+
+/* bottom nav */
+.bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;
+  background:var(--bg-secondary);border-top:1px solid rgba(255,255,255,.05);
+  display:flex;padding:8px 0 max(8px,env(safe-area-inset-bottom));
+  z-index:60;
+}
+.nav-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:6px 0;color:var(--text-secondary);transition:.15s;
+}
+.nav-item i{font-size:18px;}
+.nav-item span{font-size:10px;font-weight:500;}
+.nav-item.active{color:var(--accent-primary);}
+.nav-item:active{transform:scale(.9);}
+
+/* snackbar */
+.snackbar{
+  position:fixed;bottom:80px;left:20px;right:20px;
+  background:#1C3D5A;color:#fff;padding:14px 18px;border-radius:12px;
+  font-size:13px;display:flex;align-items:center;gap:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,.4);
+  transform:translateY(100px);opacity:0;transition:.3s ease;
+  z-index:200;
+}
+.snackbar.show{transform:translateY(0);opacity:1;}
+.snackbar i{color:var(--success);}
+.snackbar.error i{color:var(--danger);}
+
+.empty-state{text-align:center;padding:40px 20px;color:var(--text-secondary);}
+.empty-state i{font-size:36px;margin-bottom:12px;opacity:.4;}
+.empty-state p{font-size:13px;}
+
+.spinner{
+  width:16px;height:16px;border:2px solid rgba(255,255,255,.3);
+  border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;
+  display:inline-block;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="splash-logo"><i class="fa-solid fa-images"></i></div>
+  <div class="splash-title">SXO Wallpaper</div>
+  <div class="splash-sub">Admin Panel</div>
+</div>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-icon"><i class="fa-solid fa-user-shield"></i></div>
+    <h2>Admin Login</h2>
+    <p>SXO Wallpaper Management</p>
+    <div class="input-group">
+      <label>Email</label>
+      <div class="input-wrap">
+        <i class="fa-solid fa-envelope"></i>
+        <input type="email" id="loginEmail" placeholder="admin@sxo.com">
+      </div>
+    </div>
+    <div class="input-group">
+      <label>Password</label>
+      <div class="input-wrap">
+        <i class="fa-solid fa-lock"></i>
+        <input type="password" id="loginPassword" placeholder="••••••••">
+      </div>
+    </div>
+    <button class="btn-primary" id="loginBtn"><i class="fa-solid fa-arrow-right-to-bracket"></i> Login</button>
+    <p class="login-error" id="loginError">Invalid email or password</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <h1>SXO Wallpaper Admin</h1>
+    <div class="topbar-icon" id="logoutBtn"><i class="fa-solid fa-right-from-bracket"></i></div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="section active" id="sec-dashboard">
+      <div class="stats-row">
+        <div class="stat-card">
+          <i class="fa-solid fa-images"></i>
+          <div class="num" id="statWallpapers">0</div>
+          <div class="lbl">Wallpapers</div>
+        </div>
+        <div class="stat-card">
+          <i class="fa-solid fa-layer-group"></i>
+          <div class="num" id="statCategories">0</div>
+          <div class="lbl">Categories</div>
+        </div>
+      </div>
+      <div class="stats-row">
+        <div class="stat-card">
+          <i class="fa-solid fa-heart"></i>
+          <div class="num" id="statLikes">0</div>
+          <div class="lbl">Total Likes</div>
+        </div>
+        <div class="stat-card">
+          <i class="fa-solid fa-download"></i>
+          <div class="num" id="statDownloads">0</div>
+          <div class="lbl">Downloads</div>
+        </div>
+      </div>
+      <div class="card">
+        <h3><i class="fa-solid fa-clock-rotate-left"></i> Recently Added</h3>
+        <div id="recentList"><div class="empty-state"><i class="fa-solid fa-image"></i><p>No wallpapers yet</p></div></div>
+      </div>
+    </div>
+
+    <!-- ADD WALLPAPER -->
+    <div class="section" id="sec-add">
+      <div class="card">
+        <h3><i class="fa-solid fa-cloud-arrow-up"></i> Add New Wallpaper</h3>
+
+        <div class="input-group">
+          <label>Title</label>
+          <div class="input-wrap"><i class="fa-solid fa-heading"></i>
+            <input type="text" id="wpTitle" placeholder="e.g. Mountain Sunset">
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label>Image URL</label>
+          <div class="input-wrap"><i class="fa-solid fa-link"></i>
+            <input type="text" id="wpImageUrl" placeholder="https://example.com/image.jpg">
+          </div>
+        </div>
+
+        <div class="preview-box" id="wpPreviewBox">
+          <div class="ph"><i class="fa-solid fa-image"></i>Image preview will appear here</div>
+        </div>
+
+        <div class="input-group">
+          <label>Category</label>
+          <select class="styled" id="wpCategory"><option value="">Select category</option></select>
+        </div>
+
+        <div class="input-group">
+          <label>Tags (comma separated)</label>
+          <div class="input-wrap"><i class="fa-solid fa-tags"></i>
+            <input type="text" id="wpTags" placeholder="sunset, mountain, nature">
+          </div>
+        </div>
+
+        <div class="toggle-row">
+          <span><i class="fa-solid fa-fire" style="margin-right:6px;color:var(--warning)"></i>Mark as Trending</span>
+          <div class="switch" id="wpTrending"></div>
+        </div>
+        <div class="toggle-row">
+          <span><i class="fa-solid fa-star" style="margin-right:6px;color:var(--accent-primary)"></i>Mark as Featured</span>
+          <div class="switch" id="wpFeatured"></div>
+        </div>
+
+        <button class="btn-block" id="uploadBtn"><i class="fa-solid fa-cloud-arrow-up"></i> Upload Wallpaper</button>
+      </div>
+    </div>
+
+    <!-- CATEGORIES -->
+    <div class="section" id="sec-categories">
+      <div class="card">
+        <h3><i class="fa-solid fa-layer-group"></i> Add Category</h3>
+        <div class="input-group">
+          <label>Category Name</label>
+          <div class="input-wrap"><i class="fa-solid fa-tag"></i>
+            <input type="text" id="catName" placeholder="e.g. Nature">
+          </div>
+        </div>
+        <div class="input-group">
+          <label>Icon (Font Awesome class)</label>
+          <div class="input-wrap"><i class="fa-solid fa-icons"></i>
+            <input type="text" id="catIcon" placeholder="fa-tree">
+          </div>
+        </div>
+        <button class="btn-block" id="addCatBtn"><i class="fa-solid fa-plus"></i> Add Category</button>
+      </div>
+      <div class="card">
+        <h3><i class="fa-solid fa-list"></i> Existing Categories</h3>
+        <div class="cat-chip-row" id="catList"><div class="empty-state"><i class="fa-solid fa-layer-group"></i><p>No categories yet</p></div></div>
+      </div>
+    </div>
+
+    <!-- MANAGE -->
+    <div class="section" id="sec-manage">
+      <div class="search-input">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="manageSearch" placeholder="Search wallpapers...">
+      </div>
+      <div id="manageList"><div class="empty-state"><i class="fa-solid fa-image"></i><p>No wallpapers yet</p></div></div>
+    </div>
+
+  </div>
+
+  <div class="bottom-nav">
+    <div class="nav-item active" data-sec="dashboard"><i class="fa-solid fa-gauge-high"></i><span>Dashboard</span></div>
+    <div class="nav-item" data-sec="add"><i class="fa-solid fa-plus-circle"></i><span>Add New</span></div>
+    <div class="nav-item" data-sec="categories"><i class="fa-solid fa-layer-group"></i><span>Categories</span></div>
+    <div class="nav-item" data-sec="manage"><i class="fa-solid fa-list-ul"></i><span>Manage</span></div>
+  </div>
+</div>
+
+<div class="snackbar" id="snackbar"><i class="fa-solid fa-circle-check"></i><span id="snackbarText">Done</span></div>
+
+<script>
+/* ================= FIREBASE INIT ================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyDnGiqLzxbVEADhr7UfJ2SPReyGyAhTlsA",
+  authDomain: "sxo-walpaper.firebaseapp.com",
+  databaseURL: "https://sxo-walpaper-default-rtdb.firebaseio.com",
+  projectId: "sxo-walpaper",
+  storageBucket: "sxo-walpaper.firebasestorage.app",
+  messagingSenderId: "289936016376",
+  appId: "1:289936016376:web:818b424e8b379bd9c00c0d",
+  measurementId: "G-JM23DKSLRV"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+
+let editingId = null; // if set, uploadBtn acts as "update"
+let allWallpapers = {};
+let allCategories = {};
+
+/* ================= SPLASH ================= */
+setTimeout(()=>{ document.getElementById('splash').classList.add('hide'); }, 1300);
+
+/* ================= AUTH ================= */
+document.getElementById('loginBtn').addEventListener('click', doLogin);
+document.getElementById('loginPassword').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+
+function doLogin(){
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPassword').value;
+  const btn = document.getElementById('loginBtn');
+  const err = document.getElementById('loginError');
+  err.style.display = 'none';
+  if(!email || !pass){ err.textContent = 'Please enter email and password'; err.style.display='block'; return; }
+  btn.innerHTML = '<span class="spinner"></span> Logging in...';
+  auth.signInWithEmailAndPassword(email, pass)
+    .catch(e=>{
+      err.textContent = 'Invalid email or password';
+      err.style.display = 'block';
+      btn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Login';
+    });
+}
+
+auth.onAuthStateChanged(user=>{
+  if(user){
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').classList.add('show');
+    initListeners();
+  } else {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('app').classList.remove('show');
+  }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', ()=>{
+  auth.signOut();
+  document.getElementById('loginEmail').value='';
+  document.getElementById('loginPassword').value='';
+  document.getElementById('loginBtn').innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Login';
+});
+
+/* ================= NAV ================= */
+document.querySelectorAll('.nav-item').forEach(item=>{
+  item.addEventListener('click', ()=>{
+    document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    item.classList.add('active');
+    document.getElementById('sec-'+item.dataset.sec).classList.add('active');
+  });
+});
+
+/* ================= SNACKBAR ================= */
+function showSnack(msg, isError=false){
+  const sb = document.getElementById('snackbar');
+  const icon = sb.querySelector('i');
+  document.getElementById('snackbarText').textContent = msg;
+  sb.classList.toggle('error', isError);
+  icon.className = isError ? 'fa-solid fa-circle-exclamation' : 'fa-solid fa-circle-check';
+  sb.classList.add('show');
+  setTimeout(()=> sb.classList.remove('show'), 2500);
+}
+
+/* ================= TOGGLES ================= */
+document.getElementById('wpTrending').addEventListener('click', function(){ this.classList.toggle('on'); });
+document.getElementById('wpFeatured').addEventListener('click', function(){ this.classList.toggle('on'); });
+
+/* ================= IMAGE PREVIEW ================= */
+document.getElementById('wpImageUrl').addEventListener('input', function(){
+  const box = document.getElementById('wpPreviewBox');
+  const url = this.value.trim();
+  if(url){
+    box.innerHTML = `<img src="${url}" onerror="this.parentElement.innerHTML='<div class=ph><i class=\\'fa-solid fa-triangle-exclamation\\'></i>Invalid image URL</div>'">`;
+  } else {
+    box.innerHTML = `<div class="ph"><i class="fa-solid fa-image"></i>Image preview will appear here</div>`;
+  }
+});
+
+/* ================= CATEGORIES: LOAD ================= */
+function initListeners(){
+  db.ref('categories').on('value', snap=>{
+    allCategories = snap.val() || {};
+    renderCategoryDropdown();
+    renderCategoryList();
+    updateStats();
+  });
+  db.ref('wallpapers').on('value', snap=>{
+    allWallpapers = snap.val() || {};
+    renderRecent();
+    renderManageList();
+    updateStats();
+  });
+}
+
+function renderCategoryDropdown(){
+  const sel = document.getElementById('wpCategory');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Select category</option>';
+  Object.entries(allCategories).forEach(([id,c])=>{
+    sel.innerHTML += `<option value="${c.name}">${c.name}</option>`;
+  });
+  if(current) sel.value = current;
+}
+
+function renderCategoryList(){
+  const wrap = document.getElementById('catList');
+  const entries = Object.entries(allCategories);
+  if(entries.length===0){
+    wrap.innerHTML = '<div class="empty-state"><i class="fa-solid fa-layer-group"></i><p>No categories yet</p></div>';
+    return;
+  }
+  wrap.innerHTML = entries.map(([id,c])=>`
+    <div class="cat-tag">
+      <i class="fa-solid ${c.icon||'fa-tag'}"></i>
+      <span>${c.name}</span>
+      <i class="fa-solid fa-xmark del-cat" onclick="deleteCategory('${id}')"></i>
+    </div>
+  `).join('');
+}
+
+function deleteCategory(id){
+  if(confirm('Delete this category?')){
+    db.ref('categories/'+id).remove();
+    showSnack('Category deleted');
+  }
+}
+
+document.getElementById('addCatBtn').addEventListener('click', ()=>{
+  const name = document.getElementById('catName').value.trim();
+  const icon = document.getElementById('catIcon').value.trim() || 'fa-tag';
+  if(!name){ showSnack('Enter category name', true); return; }
+  db.ref('categories').push({ name, icon }).then(()=>{
+    document.getElementById('catName').value='';
+    document.getElementById('catIcon').value='';
+    showSnack('Category added');
+  });
+});
+
+/* ================= WALLPAPER UPLOAD ================= */
+document.getElementById('uploadBtn').addEventListener('click', ()=>{
+  const title = document.getElementById('wpTitle').value.trim();
+  const imageUrl = document.getElementById('wpImageUrl').value.trim();
+  const category = document.getElementById('wpCategory').value;
+  const tags = document.getElementById('wpTags').value.trim();
+  const trending = document.getElementById('wpTrending').classList.contains('on');
+  const featured = document.getElementById('wpFeatured').classList.contains('on');
+
+  if(!title || !imageUrl || !category){
+    showSnack('Please fill title, image URL and category', true);
+    return;
+  }
+
+  const data = {
+    title, imageUrl, category, tags,
+    trending, featured,
+    likes: editingId ? (allWallpapers[editingId]?.likes||0) : 0,
+    downloads: editingId ? (allWallpapers[editingId]?.downloads||0) : 0,
+    timestamp: editingId ? (allWallpapers[editingId]?.timestamp||Date.now()) : Date.now()
+  };
+
+  const btn = document.getElementById('uploadBtn');
+  btn.innerHTML = '<span class="spinner"></span> Uploading...';
+
+  const ref = editingId ? db.ref('wallpapers/'+editingId) : db.ref('wallpapers').push();
+  ref.set(data).then(()=>{
+    showSnack(editingId ? 'Wallpaper updated' : 'Wallpaper uploaded');
+    resetForm();
+  }).catch(()=>{
+    showSnack('Upload failed', true);
+    btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Upload Wallpaper';
+  });
+});
+
+function resetForm(){
+  editingId = null;
+  document.getElementById('wpTitle').value='';
+  document.getElementById('wpImageUrl').value='';
+  document.getElementById('wpCategory').value='';
+  document.getElementById('wpTags').value='';
+  document.getElementById('wpTrending').classList.remove('on');
+  document.getElementById('wpFeatured').classList.remove('on');
+  document.getElementById('wpPreviewBox').innerHTML = '<div class="ph"><i class="fa-solid fa-image"></i>Image preview will appear here</div>';
+  document.getElementById('uploadBtn').innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Upload Wallpaper';
+}
+
+/* ================= EDIT / DELETE ================= */
+function editWallpaper(id){
+  const w = allWallpapers[id];
+  if(!w) return;
+  editingId = id;
+  document.getElementById('wpTitle').value = w.title;
+  document.getElementById('wpImageUrl').value = w.imageUrl;
+  document.getElementById('wpCategory').value = w.category;
+  document.getElementById('wpTags').value = w.tags||'';
+  document.getElementById('wpTrending').classList.toggle('on', !!w.trending);
+  document.getElementById('wpFeatured').classList.toggle('on', !!w.featured);
+  document.getElementById('wpPreviewBox').innerHTML = `<img src="${w.imageUrl}">`;
+  document.getElementById('uploadBtn').innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Update Wallpaper';
+
+  document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelector('[data-sec="add"]').classList.add('active');
+  document.getElementById('sec-add').classList.add('active');
+}
+
+function deleteWallpaper(id){
+  if(confirm('Delete this wallpaper?')){
+    db.ref('wallpapers/'+id).remove();
+    showSnack('Wallpaper deleted');
+  }
+}
+
+function toggleFlag(id, field){
+  const current = allWallpapers[id][field];
+  db.ref('wallpapers/'+id+'/'+field).set(!current);
+}
+
+/* ================= RENDER LISTS ================= */
+function renderRecent(){
+  const wrap = document.getElementById('recentList');
+  const entries = Object.entries(allWallpapers).sort((a,b)=>(b[1].timestamp||0)-(a[1].timestamp||0)).slice(0,5);
+  if(entries.length===0){
+    wrap.innerHTML = '<div class="empty-state"><i class="fa-solid fa-image"></i><p>No wallpapers yet</p></div>';
+    return;
+  }
+  wrap.innerHTML = entries.map(([id,w])=>`
+    <div class="list-item">
+      <img src="${w.imageUrl}" onerror="this.src=''">
+      <div class="info">
+        <h4>${w.title}</h4>
+        <p>${w.category}</p>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderManageList(filter=''){
+  const wrap = document.getElementById('manageList');
+  let entries = Object.entries(allWallpapers).sort((a,b)=>(b[1].timestamp||0)-(a[1].timestamp||0));
+  if(filter){
+    entries = entries.filter(([id,w])=> w.title.toLowerCase().includes(filter.toLowerCase()) || (w.tags||'').toLowerCase().includes(filter.toLowerCase()));
+  }
+  if(entries.length===0){
+    wrap.innerHTML = '<div class="empty-state"><i class="fa-solid fa-image"></i><p>No wallpapers found</p></div>';
+    return;
+  }
+  wrap.innerHTML = entries.map(([id,w])=>`
+    <div class="list-item">
+      <img src="${w.imageUrl}" onerror="this.src=''">
+      <div class="info">
+        <h4>${w.title}</h4>
+        <p>${w.category}</p>
+        <div class="badges">
+          ${w.featured?'<span class="mini-badge">FEATURED</span>':''}
+          ${w.trending?'<span class="mini-badge">TRENDING</span>':''}
+        </div>
+      </div>
+      <div class="list-actions">
+        <div class="icon-btn edit" onclick="editWallpaper('${id}')"><i class="fa-solid fa-pen"></i></div>
+        <div class="icon-btn danger" onclick="deleteWallpaper('${id}')"><i class="fa-solid fa-trash"></i></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+document.getElementById('manageSearch').addEventListener('input', function(){
+  renderManageList(this.value.trim());
+});
+
+function updateStats(){
+  const wCount = Object.keys(allWallpapers).length;
+  const cCount = Object.keys(allCategories).length;
+  let likes=0, downloads=0;
+  Object.values(allWallpapers).forEach(w=>{ likes+=(w.likes||0); downloads+=(w.downloads||0); });
+  document.getElementById('statWallpapers').textContent = wCount;
+  document.getElementById('statCategories').textContent = cCount;
+  document.getElementById('statLikes').textContent = likes;
+  document.getElementById('statDownloads').textContent = downloads;
+}
+</script>
+</body>
+</html>
